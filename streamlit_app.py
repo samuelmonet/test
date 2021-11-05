@@ -5,7 +5,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 import matplotlib.pyplot as plt
 import pickle
-
+from PIL import Image
+from plotly.subplots import make_subplots
 
 
 st.set_page_config(layout="wide")
@@ -30,8 +31,8 @@ def main():
 		allmonths_increase=pickle.load( open("18months_increase.p", "rb" ) )
 		
 		st.subheader('Methodology')
-		st.write('I calculated the linear coefficient over the last 18 months and over the last 6 months which I ponderate with the squared mean level of the crisis to give more weight to severe crisis as a 0.1 increase is not the same for a 4.0 crisis than for a 1.0 crisis')
-		st.write('I selected after visualisation of the distribution of the linear coefficient the crisis with a score over 0.5 for at least one of each category. I then made 3 categories')
+		st.write('I calculated the linear coefficient over the last 18 months and over the last 6 months which I ponderate with the squared mean level of the crisis to give more weight to little increases of the score to worse crisis.')
+		st.write('I selected, after visualisation of the distribution of the linear coefficients, the crisis with a score over 0.5 for at least one of each category. I then made 3 categories')
 		st.write('')
 		st.write('The result are:')
 		
@@ -44,7 +45,7 @@ def main():
 		col2.write('Crisis with a special deterioration over the last 6 months')
 		for i in lastmonths_increase:
 			col2.caption(i)
-		col3.write('Crisis with both an increase over the last 6 months and over the last 18 months')
+		col3.write('Crisis with an increase over the last 18 months but quite stable since the last 6 months')
 		for i in allmonths_increase:
 			col3.caption(i)
 		
@@ -109,10 +110,61 @@ def main():
 		st.write('')
 		
 		st.write('So we see that the inform severity index tends to increase with the humanitarian access score')
-		st.write('What we see is that a high humanitarian access score usualy means a high inform severity index however the it does not work the other way. We can have high inform severity index despite very low access score.')
-		st.write('This makes perfectly sense as we have plenty of example of crisis where INGO can access with few or no constraints despite serious humanitarian crisis (From my personal field experience: CAR, Chad, flood in Pakistan, Ivory Coast for example). However usualy when the access is difficult or impossible it is quite frequent that the humanitarian crisis is very much worrying (From my personal field experience: Central Somalia and some places in Myanmar)')
+		st.write('What we see is that a high humanitarian access score usualy means a high inform severity index however it does not work the other way. We can have high inform severity index despite very low access score.')
+		st.write('This makes perfectly sense as we have plenty of example of crisis where INGO can access with few or no constraints despite serious humanitarian crisis (From my personal field experience: CAR (2008), Chad, flood in Pakistan, Ivory Coast for example). However, usualy, when the access is difficult or impossible it is quite frequent that the humanitarian crisis is very much worrying (From my personal field experience: Central Somalia and some places in Myanmar)')
 	
+	elif quest=='Question 2':
+		
+		st.title('Is there a correlation between the severity of a crisis, as measured by the INFORM Severity Index, and the humanitarian access score?')
+		
+		data=pd.read_csv('indicators.csv',sep='\t',index_col=None)
+		dico_crisis=pickle.load( open( "dico_crisis.p", "rb" ) )
+		
+		st.markdown("""---""")	
+		
+		temp = Image.open('shap.png')
+		image1 = Image.new("RGBA", temp.size, "WHITE") # Create a white rgba background
+		image1.paste(temp, (0, 0), temp)
+		st.image(image1)
+		
+		st.write('This represents the shap values for a simple untunned predictive model using LGBM')
+		st.write('So it seems that the main factors that affect the Inform Severity Score are the number of people affected followed\
+		 by the number of crisis affected groups and then the different level of humanitarian conditions (increase in levels 4 and 5\
+		  and decrease in level 1 and so probably 2 as well) and also the number of people displaced.')
+		
+		st.markdown("""---""")
 
-
+		
+		st.write('Below we can visualize evolution of Inform score and evolution of other indicators')
+		st.caption('NOTE: Crisis with high evolution as seen in question 1 are:')
+		col1, col2, col3 = st.columns([1,1,1])
+		col1.caption('- Complex crisis in Ethiopia')
+		col1.caption('- Conflict  in Iraq')
+		col1.caption('- Complex crisis in Mali')
+		col2.caption('- Northwest Banditry')
+		col2.caption('- Syrian Regional Crisis')
+		col2.caption('- Middle belt conflict')
+		col3.caption('- Crisis in Tigray')
+		col3.caption('- Post-coup Violence in Myanmar')	
+		
+		crisis=st.selectbox('Select which crisis you want to visualize', [i for i in dico_crisis])
+		indicator=st.selectbox('Select an indicators', [i for i in data.columns if i not in ['crisis_id','month','INFORM Severity Index','Last updated']])
+		
+		df=data[data['crisis_id']==dico_crisis[crisis]]
+		
+		fig = make_subplots(specs=[[{"secondary_y": True}]])
+		fig.add_trace(go.Scatter(x=df['month'], y=df[indicator], name=indicator),secondary_y=True,)
+		fig.add_trace(go.Scatter(x=df['month'], y=df["INFORM Severity Index"], name="INFORM Severity Index"),secondary_y=False,)
+		fig.update_yaxes(title_text="INFORM Severity Index", secondary_y=False)
+		fig.update_yaxes(title_text=indicator, secondary_y=True)
+		st.plotly_chart(fig,use_container_width=True)
+		
+		st.write('We can look for example at Complex crisis in Ethiopia with indicators: People in Need, Minimum Humanitarian conditions level 1 and 4')
+		st.write('For crisis affected groups we can see this with the multiple crisis in Djibouti for example.')
+		st.write('For people displaced we can look at Conflict in Iraq')
+		
+	else:
+		st.title('Select a question in the sidebar')
+		
 if __name__== '__main__':
     main()
